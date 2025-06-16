@@ -1,0 +1,1 @@
+Get-EventLog -LogName System -Newest 1000 | Export-Csv -Path .\SystemLogs.csv -NoTypeInformation

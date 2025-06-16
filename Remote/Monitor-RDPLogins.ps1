@@ -1,0 +1,1 @@
+Get-WinEvent -LogName "Security" | Where-Object { $_.Id -eq 4624 -and $_.Properties[8].Value -eq "10" } | Format-List TimeCreated, Message

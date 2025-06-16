@@ -1,0 +1,1 @@
+Get-DnsClientServerAddress | Where-Object {$_.ServerAddresses -notlike "*internal*"} | Format-List

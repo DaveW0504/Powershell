@@ -1,0 +1,1 @@
+Get-CimInstance -Class Win32_UserProfile | Where-Object { -not $_.Special } | Remove-CimInstance

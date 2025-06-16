@@ -1,0 +1,1 @@
+Invoke-Command -ComputerName (Get-Content .\computers.txt) -FilePath .\ScriptToRun.ps1
