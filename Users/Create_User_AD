@@ -1,0 +1,104 @@
+# Import Active Directory module if not loaded
+Import-Module ActiveDirectory -ErrorAction Stop
+
+function Read-Field($fieldName) {
+    do {
+        $userInput = Read-Host "$fieldName (enter '?' if unknown)"
+        if ([string]::IsNullOrWhiteSpace($userInput)) {
+            Write-Host "This field cannot be empty. Please enter a value or '?'."
+        } else {
+            return $userInput
+        }
+    } while ($true)
+}
+
+function Get-UserGroups() {
+    $groups = @()
+    do {
+        $groupName = Read-Host "Enter group name to add user to (or leave blank to finish)"
+        if ($groupName -eq "") {
+            break
+        }
+        # Validate group exists
+        try {
+            Get-ADGroup -Identity $groupName -ErrorAction Stop
+            $groups += $groupName
+            Write-Host "Added group: $groupName"
+        } catch {
+            Write-Warning "Group '$groupName' not found. Try again."
+        }
+    } while ($true)
+    return $groups
+}
+
+Write-Host "Please enter user details. Type '?' if unknown."
+
+# Collect user info with the ability to enter '?'
+$firstName = Prompt-Field "First Name"
+$lastName = Prompt-Field "Last Name"
+$sAMAccountName = Prompt-Field "sAMAccountName (username)"
+$userPrincipalName = Prompt-Field "User Principal Name (e.g., user@domain.com)"
+$passwordPlain = Prompt-Field "Initial Password (will be converted to secure string)"
+$displayName = Prompt-Field "Display Name"
+$description = Prompt-Field "Description"
+$office = Prompt-Field "Office"
+$phone = Prompt-Field "Phone Number"
+$email = Prompt-Field "Email Address"
+
+# Convert password to secure string
+if ($passwordPlain -eq '?') {
+    $password = (ConvertTo-SecureString "ChangeMe123!" -AsPlainText -Force) # default if unknown
+} else {
+    $password = ConvertTo-SecureString $passwordPlain -AsPlainText -Force
+}
+
+# Ask for groups to add user to, with validation
+Write-Host "Now enter groups the user should be added to."
+$groupList = Prompt-Groups
+
+# Confirm details before creation
+Write-Host "`nUser details to be created:"
+Write-Host "First Name: $firstName"
+Write-Host "Last Name: $lastName"
+Write-Host "Username (sAMAccountName): $sAMAccountName"
+Write-Host "User Principal Name: $userPrincipalName"
+Write-Host "Display Name: $displayName"
+Write-Host "Description: $description"
+Write-Host "Office: $office"
+Write-Host "Phone: $phone"
+Write-Host "Email: $email"
+Write-Host "Groups: $($groupList -join ', ')"
+Write-Host ""
+
+$confirmation = Read-Host "Proceed with creating the user? (Y/N)"
+if ($confirmation -notin @("Y", "y")) {
+    Write-Host "User creation cancelled."
+    exit
+}
+
+# Create the user
+try {
+    New-ADUser `
+        -GivenName $firstName `
+        -Surname $lastName `
+        -Name "$firstName $lastName" `
+        -SamAccountName $sAMAccountName `
+        -UserPrincipalName $userPrincipalName `
+        -AccountPassword $password `
+        -DisplayName $displayName `
+        -Description $description `
+        -Office $office `
+        -OfficePhone $phone `
+        -EmailAddress $email `
+        -Enabled $true
+
+    Write-Host "User created successfully."
+
+    # Add to groups
+    foreach ($group in $groupList) {
+        Add-ADGroupMember -Identity $group -Members $sAMAccountName
+        Write-Host "Added user to group: $group"
+    }
+} catch {
+    Write-Error "Failed to create user: $_"
+}
