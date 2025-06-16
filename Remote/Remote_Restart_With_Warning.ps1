@@ -1,0 +1,1 @@
+shutdown.exe /r /t 60 /c "System will restart in 1 minute for maintenance."
