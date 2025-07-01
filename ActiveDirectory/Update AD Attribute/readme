@@ -1,0 +1,122 @@
+AD User Attribute Update Script
+A PowerShell script designed to efficiently update specific Active Directory user attributes for user account management, particularly useful for employee offboarding or account cleanup processes.
+🎯 Purpose
+This script modifies the following AD user attributes:
+MailNickname: Updates to CN without spaces
+MSExchHideFromAddressLists: Sets to TRUE (hides from Exchange address lists)
+Manager: Clears the manager reference
+homePhone: Clears home phone number
+mobile: Clears mobile phone number
+✨ Features
+Optimized Performance: Single AD operation with batch updates
+Comprehensive Logging: Color-coded console output with timestamps
+Change Verification: Confirms all updates were applied correctly
+WhatIf Support: Preview changes without making modifications
+Error Handling: Robust error handling with detailed messages
+AD Replication: Attempts to trigger immediate replication across domain controllers
+Visual Feedback: Clear before/after comparison of attribute values
+📋 Prerequisites
+PowerShell 5.1 or later
+Active Directory PowerShell Module installed
+Domain Administrator privileges or appropriate AD permissions
+Network connectivity to domain controllers
+Installing AD PowerShell Module
+ 
+Plain Text
+powershell# On Windows Server Install-WindowsFeature RSAT-AD-PowerShell # On Windows 10/11 Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
+ 
+🚀 Usage
+Basic Usage
+ 
+Plain Text
+powershell.\CLAUDE_LEAVER_ADATT.ps1 -UserIdentity "jdoe"
+ 
+With WhatIf (Preview Mode)
+ 
+Plain Text
+powershell.\CLAUDE_LEAVER_ADATT.ps1 -UserIdentity "john.doe@company.com" -WhatIf
+ 
+Parameters
+ 
+Plain Text
+ParameterTypeRequiredDescriptionUserIdentityStringYesUser identifier (SamAccountName, UPN, or DistinguishedName)WhatIfSwitchNoPreview changes without applying them
+ 
+📝 Examples
+Example 1: Update user by SamAccountName
+ 
+Plain Text
+powershell.\CLAUDE_LEAVER_ADATT.ps1 -UserIdentity "jsmith"
+ 
+Example 2: Update user by UPN with preview
+ 
+Plain Text
+powershell.\CLAUDE_LEAVER_ADATT.ps1 -UserIdentity "jane.smith@contoso.com" -WhatIf
+ 
+Example 3: Update user by Distinguished Name
+ 
+Plain Text
+powershell.\CLAUDE_LEAVER_ADATT.ps1 -UserIdentity "CN=John Smith,OU=Users,DC=contoso,DC=com"
+ 
+📊 Sample Output
+ 
+Plain Text
+============================================    AD USER ATTRIBUTE UPDATE SCRIPT============================================ [2024-07-01 14:30:15] [INFO] Starting AD user attribute update process[2024-07-01 14:30:15] [INFO] Target User: jdoe[2024-07-01 14:30:16] [SUCCESS] User found: John Doe (DN: CN=John Doe,OU=Users,DC=contoso,DC=com) Current Attribute Values:------------------------[2024-07-01 14:30:16] [INFO] MailNickname: 'John Doe'[2024-07-01 14:30:16] [INFO] MSExchHideFromAddressLists: 'False'[2024-07-01 14:30:16] [INFO] Manager: 'CN=Jane Manager,OU=Users,DC=contoso,DC=com' Planned Changes:---------------  ✓ MailNickname: 'John Doe' → 'JohnDoe'  ✓ MSExchHideFromAddressLists: 'False' → 'True'  ✓ Manager: 'CN=Jane Manager,OU=Users,DC=contoso,DC=com' → (cleared) [2024-07-01 14:30:17] [SUCCESS] Successfully updated attributes for user: jdoe 🎉 All attribute updates completed successfully!
+ 
+⚠️ Important Considerations
+Security
+Run with appropriate permissions: Ensure the executing account has rights to modify user attributes
+Test in non-production: Always test scripts in a development environment first
+Backup considerations: Consider backing up user data before bulk operations
+Exchange Integration
+Changes to MSExchHideFromAddressLists may take time to replicate to Exchange
+Address list updates typically occur during the next Exchange maintenance cycle
+Replication
+The script attempts to trigger AD replication but may not have sufficient permissions
+Allow normal replication time (typically 15 minutes between sites) if forced replication fails
+🔧 Troubleshooting
+Common Issues
+"Active Directory PowerShell module is not installed"
+ 
+Plain Text
+powershell# Install RSAT tools Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
+ 
+"Cannot find user"
+Verify the user identity format
+Check if the user exists in the current domain
+Ensure you have read permissions on the user object
+"Access Denied"
+Run PowerShell as Administrator
+Verify your account has appropriate AD permissions
+Check if the user object is protected from accidental deletion
+Permissions Required
+The executing account needs the following AD permissions:
+Read all user properties
+Write to MailNickname, MSExchHideFromAddressLists, Manager, homePhone, mobile attributes
+Extended Rights may be required for Exchange-related attributes
+📈 Performance Notes
+Optimized for speed: Single AD call for all updates
+Minimal network traffic: Batch operations reduce AD queries
+Replication aware: Attempts to trigger immediate replication
+Verification included: Confirms changes without additional performance impact
+🤝 Contributing
+Fork the repository
+Create a feature branch (git checkout -b feature/improvement)
+Make your changes
+Test thoroughly in a lab environment
+Commit your changes (git commit -am 'Add new feature')
+Push to the branch (git push origin feature/improvement)
+Create a Pull Request
+📄 License
+This project is licensed under the MIT License - see the LICENSE file for details.
+⚡ Quick Start Checklist
+ Active Directory PowerShell module installed
+ PowerShell running as Administrator
+ Network connectivity to domain controllers
+ Appropriate AD permissions configured
+ Test user account available for validation
+ Backup/rollback plan in place (for production use)
+🔗 Related Documentation
+Active Directory PowerShell Module
+Set-ADUser Cmdlet
+Exchange Address Lists
+Note: This script is designed for administrative use in managing Active Directory user accounts. Always test in a non-production environment before deploying to production systems.
