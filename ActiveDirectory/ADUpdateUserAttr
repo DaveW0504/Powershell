@@ -1,0 +1,275 @@
+#Requires -Modules ActiveDirectory
+
+<#
+.SYNOPSIS
+    Update specific AD user attributes: MailNickname and MSExchHideFromAddressLists
+.DESCRIPTION
+    This script modifies MailNickname (based on CN without spaces), 
+    MSExchHideFromAddressLists (set to TRUE), and clears Manager, homePhone, 
+    and mobile attributes with optimized performance for quick AD sync.
+.PARAMETER UserIdentity
+    The user identity (SamAccountName, UserPrincipalName, or DistinguishedName)
+.PARAMETER LogPath
+    Path for log file (default: current directory)
+.PARAMETER WhatIf
+    Show what would be changed without making actual changes
+.EXAMPLE
+    .\Update-ADUserAttributes.ps1 -UserIdentity "jdoe"
+.EXAMPLE
+    .\Update-ADUserAttributes.ps1 -UserIdentity "john.doe@company.com" -WhatIf
+#>
+
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$UserIdentity,
+    
+
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$WhatIf
+)
+
+# Performance and reliability settings
+$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+
+# Initialize console output with colors
+function Write-Log {
+    param([string]$Message, [string]$Level = "INFO")
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    
+    switch ($Level) {
+        "SUCCESS" { 
+            Write-Host "[$timestamp] " -NoNewline
+            Write-Host "[SUCCESS] " -ForegroundColor Green -NoNewline
+            Write-Host $Message
+        }
+        "ERROR" { 
+            Write-Host "[$timestamp] " -NoNewline
+            Write-Host "[ERROR] " -ForegroundColor Red -NoNewline
+            Write-Host $Message
+        }
+        "WARNING" { 
+            Write-Host "[$timestamp] " -NoNewline
+            Write-Host "[WARNING] " -ForegroundColor Yellow -NoNewline
+            Write-Host $Message
+        }
+        "INFO" { 
+            Write-Host "[$timestamp] " -NoNewline
+            Write-Host "[INFO] " -ForegroundColor Cyan -NoNewline
+            Write-Host $Message
+        }
+        default { 
+            Write-Host "[$timestamp] [INFO] $Message"
+        }
+    }
+}
+
+try {
+    Write-Host ""
+    Write-Host "============================================" -ForegroundColor Magenta
+    Write-Host "    AD USER ATTRIBUTE UPDATE SCRIPT" -ForegroundColor Magenta
+    Write-Host "============================================" -ForegroundColor Magenta
+    Write-Host ""
+    
+    Write-Log "Starting AD user attribute update process"
+    Write-Log "Target User: $UserIdentity"
+    
+    # Import Active Directory module with error handling
+    if (-not (Get-Module -Name ActiveDirectory -ListAvailable)) {
+        throw "Active Directory PowerShell module is not installed"
+    }
+    
+    Import-Module ActiveDirectory -Force
+    Write-Log "Active Directory module loaded successfully"
+    
+    # Verify user exists and get required properties
+    Write-Log "Verifying user exists in Active Directory..."
+    $user = Get-ADUser -Identity $UserIdentity -Properties CN, MailNickname, MSExchHideFromAddressLists, Manager, homePhone, mobile -ErrorAction Stop
+    Write-Log "User found: $($user.Name) (DN: $($user.DistinguishedName))" "SUCCESS"
+    
+    Write-Host ""
+    Write-Host "Current Attribute Values:" -ForegroundColor Yellow
+    Write-Host "------------------------" -ForegroundColor Yellow
+    Write-Log "CN: '$currentCN'"
+    Write-Log "MailNickname: '$($user.MailNickname)'"
+    Write-Log "MSExchHideFromAddressLists: '$($user.MSExchHideFromAddressLists)'"
+    Write-Log "Manager: '$($user.Manager)'"
+    Write-Log "homePhone: '$($user.homePhone)'"
+    Write-Log "mobile: '$($user.mobile)'"
+    
+    Write-Host ""
+    Write-Host "Planned Changes:" -ForegroundColor Yellow
+    Write-Host "---------------" -ForegroundColor Yellow
+    
+    # Calculate new MailNickname from CN (remove all spaces)
+    $currentCN = $user.CN
+    $newMailNickname = $currentCN -replace '\s+', ''
+    
+    # Prepare attribute updates
+    $attributesToReplace = @{}
+    $attributesToClear = @()
+    $changesNeeded = $false
+    
+    # Check if MailNickname needs updating
+    if ($user.MailNickname -ne $newMailNickname) {
+        $attributesToReplace['MailNickname'] = $newMailNickname
+        $changesNeeded = $true
+        Write-Host "  ✓ " -ForegroundColor Green -NoNewline
+        Write-Host "MailNickname: '$($user.MailNickname)' → '$newMailNickname'"
+    } else {
+        Write-Host "  - " -ForegroundColor Gray -NoNewline
+        Write-Host "MailNickname: No change needed (already '$newMailNickname')" -ForegroundColor Gray
+    }
+    
+    # Check if MSExchHideFromAddressLists needs updating
+    if ($user.MSExchHideFromAddressLists -ne $true) {
+        $attributesToReplace['MSExchHideFromAddressLists'] = $true
+        $changesNeeded = $true
+        Write-Host "  ✓ " -ForegroundColor Green -NoNewline
+        Write-Host "MSExchHideFromAddressLists: '$($user.MSExchHideFromAddressLists)' → 'True'"
+    } else {
+        Write-Host "  - " -ForegroundColor Gray -NoNewline
+        Write-Host "MSExchHideFromAddressLists: No change needed (already True)" -ForegroundColor Gray
+    }
+    
+    # Check if Manager needs clearing
+    if ($user.Manager) {
+        $attributesToClear += 'Manager'
+        $changesNeeded = $true
+        Write-Host "  ✓ " -ForegroundColor Green -NoNewline
+        Write-Host "Manager: '$($user.Manager)' → (cleared)"
+    } else {
+        Write-Host "  - " -ForegroundColor Gray -NoNewline
+        Write-Host "Manager: No change needed (already blank)" -ForegroundColor Gray
+    }
+    
+    # Check if homePhone needs clearing
+    if ($user.homePhone) {
+        $attributesToClear += 'homePhone'
+        $changesNeeded = $true
+        Write-Host "  ✓ " -ForegroundColor Green -NoNewline
+        Write-Host "homePhone: '$($user.homePhone)' → (cleared)"
+    } else {
+        Write-Host "  - " -ForegroundColor Gray -NoNewline
+        Write-Host "homePhone: No change needed (already blank)" -ForegroundColor Gray
+    }
+    
+    # Check if mobile needs clearing
+    if ($user.mobile) {
+        $attributesToClear += 'mobile'
+        $changesNeeded = $true
+        Write-Host "  ✓ " -ForegroundColor Green -NoNewline
+        Write-Host "mobile: '$($user.mobile)' → (cleared)"
+    } else {
+        Write-Host "  - " -ForegroundColor Gray -NoNewline
+        Write-Host "mobile: No change needed (already blank)" -ForegroundColor Gray
+    }
+    
+    if (-not $changesNeeded) {
+        Write-Host ""
+        Write-Host "✅ No changes required for user $UserIdentity" -ForegroundColor Green
+        Write-Host ""
+        return
+    }
+    
+    if ($WhatIf) {
+        Write-Host ""
+        Write-Host "🔍 WhatIf mode - No actual changes will be made" -ForegroundColor Yellow
+        Write-Host ""
+        return
+    }
+    
+    # Apply updates with performance optimization
+    Write-Host ""
+    Write-Log "Applying attribute updates..." "INFO"
+    
+    # Build Set-ADUser parameters
+    $setParams = @{
+        Identity = $UserIdentity
+        ErrorAction = 'Stop'
+    }
+    
+    # Add Replace parameter if we have attributes to replace
+    if ($attributesToReplace.Count -gt 0) {
+        $setParams['Replace'] = $attributesToReplace
+    }
+    
+    # Add Clear parameter if we have attributes to clear
+    if ($attributesToClear.Count -gt 0) {
+        $setParams['Clear'] = $attributesToClear
+    }
+    
+    Set-ADUser @setParams
+    
+    Write-Log "Successfully updated attributes for user: $UserIdentity" "SUCCESS"
+    
+    # Force immediate replication if domain controllers are available
+    try {
+        Write-Log "Attempting to trigger AD replication..."
+        $domainControllers = Get-ADDomainController -Filter * | Select-Object -First 3
+        foreach ($dc in $domainControllers) {
+            try {
+                repadmin /syncall $dc.HostName /AdeP /e | Out-Null
+                Write-Log "Triggered replication on DC: $($dc.HostName)" "INFO"
+            } catch {
+                Write-Log "Could not trigger replication on DC: $($dc.HostName) - $($_.Exception.Message)" "WARNING"
+            }
+        }
+    } catch {
+        Write-Log "Could not access repadmin or trigger replication - changes will replicate normally" "WARNING"
+    }
+    
+    # Verify changes were applied
+    Write-Log "Verifying changes were applied..." "INFO"
+    Start-Sleep -Seconds 2
+    $updatedUser = Get-ADUser -Identity $UserIdentity -Properties CN, MailNickname, MSExchHideFromAddressLists, Manager, homePhone, mobile -ErrorAction Stop
+    
+    Write-Host ""
+    Write-Host "Verification Results:" -ForegroundColor Yellow
+    Write-Host "--------------------" -ForegroundColor Yellow
+    Write-Log "MailNickname: '$($updatedUser.MailNickname)'"
+    Write-Log "MSExchHideFromAddressLists: '$($updatedUser.MSExchHideFromAddressLists)'"
+    Write-Log "Manager: '$($updatedUser.Manager)'"
+    Write-Log "homePhone: '$($updatedUser.homePhone)'"
+    Write-Log "mobile: '$($updatedUser.mobile)'"
+    
+    $allUpdatesSuccessful = $true
+    
+    # Check replaced attributes
+    foreach ($attr in $attributesToReplace.Keys) {
+        $expectedValue = $attributesToReplace[$attr]
+        $actualValue = $updatedUser.$attr
+        if ($actualValue -ne $expectedValue) {
+            Write-Log "ERROR: $attr was not updated correctly. Expected: '$expectedValue', Actual: '$actualValue'" "ERROR"
+            $allUpdatesSuccessful = $false
+        }
+    }
+    
+    # Check cleared attributes
+    foreach ($attr in $attributesToClear) {
+        $actualValue = $updatedUser.$attr
+        if ($actualValue) {
+            Write-Log "ERROR: $attr was not cleared correctly. Still contains: '$actualValue'" "ERROR"
+            $allUpdatesSuccessful = $false
+        }
+    }
+    
+    if ($allUpdatesSuccessful) {
+        Write-Host ""
+        Write-Host "🎉 All attribute updates completed successfully!" -ForegroundColor Green
+        Write-Host ""
+    } else {
+        throw "One or more attribute updates were not applied correctly"
+    }
+    
+} catch {
+    Write-Log "ERROR: $($_.Exception.Message)" "ERROR"
+    Write-Log "Full error details: $($_.Exception.ToString())" "ERROR"
+    exit 1
+} finally {
+    Write-Host "============================================" -ForegroundColor Magenta
+    Write-Host "         SCRIPT EXECUTION COMPLETED" -ForegroundColor Magenta
+    Write-Host "============================================" -ForegroundColor Magenta
+    Write-Host ""
+}
