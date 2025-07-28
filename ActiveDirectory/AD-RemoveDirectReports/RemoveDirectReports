@@ -1,0 +1,1 @@
+Get-ADUser [Firstname.LastName] -Properties DirectReports | Select -ExpandProperty DirectReports | Set-ADUser -Clear Manager 
